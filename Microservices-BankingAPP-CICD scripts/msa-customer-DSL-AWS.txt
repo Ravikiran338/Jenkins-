@@ -1,0 +1,38 @@
+pipeline {
+	agent any
+	tools { 
+        maven 'Maven'  
+          }
+	stages {
+	         stage ('scm checkout') {
+			       steps {
+					checkout([$class: 'GitSCM', branches: [[name: '*/msa-develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'tuleap', url: 'http://182.74.133.93/plugins/git/microservice-poc/msa-BE.git']]])
+	                      }
+                    }						  
+			 stage ('build') {
+			       steps {
+				           sh label: '', script: '''cd /var/lib/jenkins/workspace/msa-customer-DSL/microservices-customer-service
+                                                    mvn clean install
+			                                     '''
+					     }
+					}					
+			 stage ('deploy') {
+			      steps {
+				     sh label: '', script: '''
+                                              cd /var/lib/jenkins/workspace/msa-customer-DSL/microservices-customer-service					 
+											  docker rmi -f customer
+											  docker build -t customer .
+											  docker login
+                                              docker tag customer ravi338/msa-banking-aws:customer-${BUILD_NUMBER}
+                                              docker push ravi338/msa-banking-aws:customer-${BUILD_NUMBER}
+											  docker pull ravi338/msa-banking-aws:customer-${BUILD_NUMBER}
+											                                            
+                                              docker stop my-customer
+                                              docker rm -f my-customer                                           
+                                              
+                                              docker run --name=my-customer -d -p 3256:3256 ravi338/msa-banking-aws:customer-${BUILD_NUMBER}
+										   '''										   
+						}
+					}
+				}
+			}
